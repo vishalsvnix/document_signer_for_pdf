@@ -1,6 +1,7 @@
 import frappe
 import io
 import pdfkit
+from datetime import date
 
 from distutils.version import LooseVersion
 
@@ -64,14 +65,33 @@ def signed_get_pdf(html, options=None, output: PdfWriter | None = None):
     if "password" in options:
         writer.encrypt(password)
 
-    if frappe.conf.signature_pem_file and frappe.conf.signature_key_file:
+    # Pick certs based on invoice date: Neeraj before 28-02-2026, FuelBuddy from 28-02-2026 onwards
+    cutoff_date = date(2026, 2, 28)
+    posting_date = None
+    if frappe.form_dict.get('doctype') and frappe.form_dict.get('name'):
+        posting_date = frappe.db.get_value(frappe.form_dict.doctype, frappe.form_dict.name, 'posting_date')
+    invoice_date = posting_date or date.today()
+    if invoice_date < cutoff_date:
+        pem_file = frappe.conf.signature_pem_file
+        key_file = frappe.conf.signature_key_file
+        ca_chain_files = frappe.conf.signature_ca_chain_files
+        signature_box = frappe.conf.signature_box
+        signed_by = frappe.conf.signed_by
+    else:
+        pem_file = frappe.conf.fuelbuddy_signature_pem_file
+        key_file = frappe.conf.fuelbuddy_signature_key_file
+        ca_chain_files = frappe.conf.fuelbuddy_signature_ca_chain_files
+        signature_box = frappe.conf.fuelbuddy_signature_box
+        signed_by = frappe.conf.fuelbuddy_signed_by
+
+    if pem_file and key_file:
         filedata = sign_pdf(
             io.BytesIO(filedata),
-            pem_file=frappe.conf.signature_pem_file,
-            key_file=frappe.conf.signature_key_file,
-            ca_chain_files=frappe.conf.signature_ca_chain_files,
-            signature_box=frappe.conf.signature_box,
-            signed_by = frappe.conf.signed_by,
+            pem_file=pem_file,
+            key_file=key_file,
+            ca_chain_files=ca_chain_files,
+            signature_box=signature_box,
+            signed_by=signed_by,
             options=options
         )
     else:
