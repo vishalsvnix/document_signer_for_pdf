@@ -65,8 +65,9 @@ def signed_get_pdf(html, options=None, output: PdfWriter | None = None):
     if "password" in options:
         writer.encrypt(password)
 
-    # Pick certs based on invoice date: Neeraj before 28-02-2026, FuelBuddy from 28-02-2026 onwards
-    cutoff_date = date(2026, 2, 28)
+    # Pick certs based on invoice date: Neeraj before cutoff, FuelBuddy from cutoff onwards
+    cutoff_str = frappe.conf.signature_cutoff_date
+    cutoff_date = date.fromisoformat(cutoff_str)
     posting_date = None
     if frappe.form_dict.get('doctype') and frappe.form_dict.get('name'):
         posting_date = frappe.db.get_value(frappe.form_dict.doctype, frappe.form_dict.name, 'posting_date')
